@@ -4,11 +4,8 @@
 USBManager/
 │
 ├── 📂 launchers/              # Başlatma scriptleri
-│   ├── baslat.bat             # Batch launcher (2sn konsol)
-│   ├── baslat_gizli.vbs       # VBScript launcher (gizli) ⭐
-│   ├── baslat_src.bat         # Legacy src launcher
-│   ├── baslat_gizli_src.vbs   # Legacy src VBScript
-│   ├── create_shortcut.ps1    # Masaüstü kısayolu oluşturucu
+│   ├── baslat.vbs             # VBScript launcher (gizli) ⭐
+│   ├── create_shortcut.bat    # Masaüstü kısayolu oluşturucu
 │   └── README.md              # Launcher kullanım kılavuzu
 │
 ├── 📂 docs/                   # Dokümantasyon
@@ -211,7 +208,7 @@ pip install .           # Normal install
 ### "Uygulamayı nasıl başlatırım?"
 
 ```
-launchers\baslat_gizli.vbs
+launchers\baslat.vbs
 ```
 
 ### "Kullanım kılavuzu nerede?"

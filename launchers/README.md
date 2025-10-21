@@ -1,102 +1,84 @@
-# 📂 Launchers Klasörü - Kullanım Rehberi
+# 🚀 USB Manager - Başlatıcı Klasörü
 
-Bu klasör, USB Manager uygulamasını başlatmak için farklı yöntemler içerir.
+Bu klasör, USB Manager uygulamasını başlatmak için gerekli dosyaları içerir.
 
 ---
 
-## 🎯 Önerilen Kullanım
+## 🎯 Hızlı Başlangıç
 
-### ⭐ En İyi: `baslat_gizli.vbs`
+### Yöntem 1: Doğrudan Başlat ⭐ (ÖNERİLEN)
 
-**Konsol olmadan, tamamen gizli başlatma**
+**En basit ve hızlı yöntem:**
 
 ```
-# Çift tıklama:
-baslat_gizli.vbs
+Çift tıklama: baslat.vbs
 ```
 
 **Özellikleri:**
 - ✅ Konsol penceresi hiç görünmez
 - ✅ Direkt GUI açılır
-- ✅ Profesyonel görünüm
-- ✅ Sessiz başlatma
+- ✅ Profesyonel ve sessiz başlatma
+- ✅ Tek adımda çalışır
 
 ---
 
-## 📝 Tüm Başlatıcılar
+### Yöntem 2: Masaüstü Kısayolu Oluştur
 
-### 1. `baslat_gizli.vbs` ⭐ (ÖNERİLEN)
+**İlk kurulumda önerilir:**
 
-**VBScript - Tamamen Gizli Başlatma**
-
-- Konsol: ❌ Yok
-- GUI: ✅ Var
-- Kullanım: Çift tıklama
-- Platform: Windows
-
-### 2. `baslat.bat`
-
-**Batch Script - 2 Saniye Konsol**
-
-- Konsol: ⚠️ 2 saniye görünür
-- GUI: ✅ Var
-- Kullanım: Çift tıklama veya cmd
-- Debug: ✅ Mesajlar görünür
-
-### 3. `create_shortcut.ps1`
-
-**PowerShell - Masaüstü Kısayolu Oluşturucu**
-
-```powershell
-# PowerShell ile çalıştır:
-.\create_shortcut.ps1
+```cmd
+# Çift tıklama:
+create_shortcut.bat
 ```
 
 **Ne Yapar:**
 - Masaüstünde "USB Manager" kısayolu oluşturur
-- İkon ataması yapar
+- İkon ataması yapar (tool.ico)
 - pythonw.exe ile çalışacak şekilde ayarlar
+- Konsol olmadan başlatma
+- PowerShell execution policy sorunu yok
 
-### 4. `baslat_src.bat` (Legacy)
-
-**Eski src/ Launcher - Geriye Uyumluluk**
-
-### 5. `baslat_gizli_src.vbs` (Legacy)
-
-**Eski src/ VBScript - Geriye Uyumluluk**
-
----
-
-## 🔄 Karşılaştırma
-
-| Launcher | Konsol | Hız | Kolay | Önerilen |
-|----------|--------|-----|-------|----------|
-| `baslat_gizli.vbs` | ❌ | ⚡⚡⚡ | ✅✅✅ | ⭐⭐⭐⭐⭐ |
-| `baslat.bat` | ⚠️ 2sn | ⚡⚡ | ✅✅ | ⭐⭐⭐ |
-| Kısayol | ❌ | ⚡⚡⚡ | ✅✅✅ | ⭐⭐⭐⭐⭐ |
+**Ne Yapar:**
+- Masaüstünde "USB Manager" kısayolu oluşturur
+- İkon ataması yapar (tool.ico)
+- pythonw.exe ile çalışacak şekilde ayarlar
+- Konsol olmadan başlatma
 
 ---
 
-## 🎓 Nasıl Çalışır?
+## 📝 Dosyalar
 
-### VBScript Launcher (`baslat_gizli.vbs`)
+| Dosya | Açıklama | Kullanım |
+|-------|----------|----------|
+| `baslat.vbs` | Ana başlatıcı (konsol yok) | Çift tıklama |
+| `create_shortcut.bat` | Masaüstü kısayolu oluşturucu | Çift tıklama |
+| `README.md` | Bu dosya | Dokümantasyon |
+
+---
+
+## 🎯 Nasıl Çalışır?
+
+### `baslat.vbs` - VBScript Başlatıcı
 
 ```vbscript
-' 1. Launcher dizinini bul
-' 2. Proje kök dizinine git
-' 3. src klasörüne geç
-' 4. pythonw.exe ile GUI'yi başlat (konsol yok)
+' 1. Ana proje dizinini otomatik bulur
+' 2. src/ klasörüne gider
+' 3. pythonw.exe ile GUI'yi başlatır (konsol yok)
+' 4. WindowStyle=0 (gizli pencere)
 ' 5. Script sonlanır
 ```
 
-### Batch Launcher (`baslat.bat`)
+### `create_shortcut.bat` - Kısayol Oluşturucu
 
 ```batch
-REM 1. Launcher dizininden src'ye git
-REM 2. Gereksinimleri kontrol et
-REM 3. 2 saniye mesaj göster
-REM 4. pythonw.exe ile GUI başlat
-REM 5. Batch penceresi kapan
+# 1. PowerShell komutlarını inline çalıştırır
+# 2. Masaüstü yolunu bulur
+# 3. "USB Manager.lnk" kısayolu oluşturur
+# 4. pythonw.exe hedef olarak ayarlar
+# 5. Çalışma dizinini src/ yapar
+# 6. tool.ico ikonunu atar
+# 7. Kısayolu kaydeder
+# 8. ExecutionPolicy bypass otomatik
 ```
 
 ---
@@ -107,10 +89,10 @@ REM 5. Batch penceresi kapan
 
 ```cmd
 # Manuel çalıştır:
-cscript baslat_gizli.vbs
+cscript baslat.vbs
 
 # Veya tam yol:
-"C:\Windows\System32\cscript.exe" baslat_gizli.vbs
+"C:\Windows\System32\cscript.exe" baslat.vbs
 ```
 
 ### pythonw bulunamıyor
@@ -120,17 +102,43 @@ cscript baslat_gizli.vbs
 # Kontrol:
 where pythonw
 
-# Tam yol ile:
-"C:\Python310\pythonw.exe" ..\src\USBManager.py
+# Eğer bulunamazsa Python'u yeniden yükle ve "Add to PATH" seçeneğini işaretle
 ```
 
 ---
 
-## 📋 Öneriler
+## 🔧 Teknik Detaylar
 
-1. **Günlük Kullanım:** `baslat_gizli.vbs`
-2. **Masaüstü Erişim:** Önce `create_shortcut.ps1` çalıştır
-3. **Debug:** `baslat.bat` (mesajları görebilirsiniz)
+### pythonw.exe vs python.exe
+
+```
+python.exe   → Konsol penceresi açar (CLI uygulamalar için)
+pythonw.exe  → Konsol yok (GUI uygulamalar için) ✅
+```
+
+### VBScript Run Parametreleri
+
+```vbscript
+WshShell.Run "komut", WindowStyle, WaitOnReturn
+
+WindowStyle:
+  0 = Gizli pencere     ✅ (USB Manager kullanıyor)
+  1 = Normal pencere
+  2 = Minimize
+  3 = Maximize
+
+WaitOnReturn:
+  True  = Komut bitene kadar bekle
+  False = Beklemeden devam et  ✅
+```
+
+---
+
+## 📚 Öneriler
+
+1. **Günlük Kullanım:** `baslat.vbs` - Çift tıklama
+2. **İlk Kurulum:** `create_shortcut.bat` - Masaüstü kısayolu oluştur
+3. **Paylaşım:** `baslat.vbs` dosyasını önerin (en basit)
 
 ---
 

@@ -18,10 +18,10 @@
 cd USBManager
 
 # Uygulamayı başlatın (konsol yok)
-launchers\baslat_gizli.vbs
+launchers\baslat.vbs
 ```
 
-**Veya çift tıklama:** `launchers\baslat_gizli.vbs`
+**Veya çift tıklama:** `launchers\baslat.vbs`
 
 ---
 
@@ -70,7 +70,7 @@ cd USBManager
 pip install -r requirements.txt
 
 # 3. Uygulamayı başlatın
-launchers\baslat_gizli.vbs
+launchers\baslat.vbs
 ```
 
 ---
@@ -81,14 +81,14 @@ launchers\baslat_gizli.vbs
 
 ```cmd
 # Konsol olmadan başlat
-launchers\baslat_gizli.vbs
+launchers\baslat.vbs
 ```
 
 ### Yöntem 2: Masaüstü Kısayolu Oluştur
 
-``powershell
-# PowerShell ile çalıştırın
-.\launchers\create_shortcut.ps1
+```cmd
+# Çift tıklama:
+launchers\create_shortcut.bat
 
 # Masaüstünde "USB Manager" ikonu oluşturulur
 ```
@@ -111,11 +111,9 @@ Tüm özellikler için: [📚 Hızlı Başlangıç Kılavuzu](docs/QUICKSTART.md
 ```
 USBManager/
 ├── 📂 launchers/           # Başlatma scriptleri
-│   ├── baslat.bat          # Batch launcher
-│   ├── baslat_gizli.vbs    # Silent VBScript launcher ⭐
-│   ├── baslat_src.bat      # Legacy src launcher
-│   ├── baslat_gizli_src.vbs
-│   └── create_shortcut.ps1 # Desktop shortcut creator
+│   ├── baslat.vbs          # VBScript launcher (önerilen) ⭐
+│   ├── create_shortcut.ps1 # Masaüstü kısayolu oluşturucu
+│   └── README.md           # Launcher kullanım kılavuzu
 │
 ├── 📂 docs/                # Dokümantasyon
 │   ├── README.md           # Ana dokümantasyon
