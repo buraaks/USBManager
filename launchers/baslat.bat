@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0\..\src"
 echo ================================================
 echo   USB Flash Surucu Yonetim Merkezi
 echo ================================================
@@ -7,12 +8,16 @@ echo Gereksinimler kontrol ediliyor...
 python -c "import psutil" 2>nul
 if errorlevel 1 (
     echo psutil kutuphanesi bulunamadi. Yukleniyor...
-    pip install -r ../requirements.txt
-) else (
-    echo Tum gereksinimler yuklu!
+    pip install -r ..\requirements.txt
 )
 echo.
 echo Uygulama baslatiliyor...
 echo.
-python USBManager.py
-pause
+echo Konsol penceresi 2 saniye sonra kapanacak...
+timeout /t 2 /nobreak >nul
+
+REM GUI modunda baslat (konsol gizli)
+start "" pythonw.exe USBManager.py
+
+REM Batch penceresini kapat
+exit
