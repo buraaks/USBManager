@@ -558,17 +558,24 @@ class USBManagerApp(tk.Tk):
         
         ttk.Label(file_ops_frame, text="Seçili Dosya İşlemleri:", font=("Segoe UI", 9, "bold")).pack(anchor="w", pady=2)
         
-        ops_buttons = ttk.Frame(file_ops_frame)
-        ops_buttons.pack(fill="x", pady=2)
+        # Grid layout kullan - 2 satır, 2 sütun
+        ops_grid = ttk.Frame(file_ops_frame)
+        ops_grid.pack(fill="x", pady=2)
         
-        ttk.Button(ops_buttons, text="🗑️ Seçili Dosyayı Sil", command=self.delete_selected, width=20).pack(side="left", padx=2)
-        ttk.Button(ops_buttons, text="👁️ Dosya Özelliklerini Göster", command=self.show_file_properties, width=25).pack(side="left", padx=2)
+        # Sabit genişlik - tüm butonlar için
+        button_width = 28
         
-        ops_buttons2 = ttk.Frame(file_ops_frame)
-        ops_buttons2.pack(fill="x", pady=2)
+        # 1. satır
+        ttk.Button(ops_grid, text="🗑️ Dosyayı Sil", command=self.delete_selected, width=button_width).grid(row=0, column=0, padx=2, pady=2, sticky="ew")
+        ttk.Button(ops_grid, text="👁️ Özellikleri Göster", command=self.show_file_properties, width=button_width).grid(row=0, column=1, padx=2, pady=2, sticky="ew")
         
-        ttk.Button(ops_buttons2, text="📋 USB'ye Kopyala", command=self.copy_to_usb, width=20).pack(side="left", padx=2)
-        ttk.Button(ops_buttons2, text="💾 Raporu Kaydet", command=self.save_report, width=18).pack(side="left", padx=2)
+        # 2. satır
+        ttk.Button(ops_grid, text="📋 USB'ye Kopyala", command=self.copy_to_usb, width=button_width).grid(row=1, column=0, padx=2, pady=2, sticky="ew")
+        ttk.Button(ops_grid, text="💾 Raporu Kaydet", command=self.save_report, width=button_width).grid(row=1, column=1, padx=2, pady=2, sticky="ew")
+        
+        # Sütunları eşit genişlikte yap
+        ops_grid.columnconfigure(0, weight=1)
+        ops_grid.columnconfigure(1, weight=1)
         
         # Durum çubuğu
         status_frame = tk.Frame(self, bg=self.colors['dark'], height=30)
