@@ -1250,7 +1250,9 @@ This software is **proprietary** and confidential. Unauthorized copying, distrib
 
 ## 👨‍💻 Geliştirici
 
-**Burak** - 2025
+**Yazar** - 2025
+
+Burak TEMUR ve Arda DEMİRHAN
 
 ---
 

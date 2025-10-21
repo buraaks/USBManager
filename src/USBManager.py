@@ -3,7 +3,7 @@
 """
 USB Manager - Advanced USB Drive File Management and Security Tool
 
-Copyright (c) 2025 Burak. All rights reserved.
+Copyright (c) 2025 Burak TEMUR and Arda DEMİRHAN. All rights reserved.
 This software is proprietary. Unauthorized use is prohibited.
 """
 
@@ -16,12 +16,22 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, filedialog
 import subprocess
 import shutil
+import sys
+import logging
+from datetime import datetime
+import time
+import re
 
 # --- Windows API ---
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
 GetFileAttributesW = kernel32.GetFileAttributesW
 GetFileAttributesW.argtypes = [wintypes.LPCWSTR]
 GetFileAttributesW.restype = wintypes.DWORD
+
+SetFileAttributesW = kernel32.SetFileAttributesW
+SetFileAttributesW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD]
+SetFileAttributesW.restype = wintypes.BOOL
 
 GetVolumeInformationW = kernel32.GetVolumeInformationW
 GetVolumeInformationW.argtypes = [
@@ -36,6 +46,7 @@ GetVolumeInformationW.argtypes = [
 ]
 GetVolumeInformationW.restype = wintypes.BOOL
 
+FILE_ATTRIBUTE_READONLY = 0x1
 FILE_ATTRIBUTE_HIDDEN = 0x2
 FILE_ATTRIBUTE_SYSTEM = 0x4
 MAX_READ_BYTES = 4096
@@ -43,6 +54,102 @@ MAX_READ_BYTES = 4096
 # Varsayılan dosya adı ve token
 DEFAULT_FILENAME = "a3f9c7b2.dat"
 DEFAULT_TOKEN = "USB-AUTH-2442C3D3"
+
+# Logging yapılandırması
+log_dir = os.path.join(os.path.dirname(__file__), "logs")
+os.makedirs(log_dir, exist_ok=True)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(
+            os.path.join(log_dir, f'usbmanager_{datetime.now().strftime("%Y%m%d")}.log'),
+            encoding='utf-8'
+        ),
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
+
+def validate_filename(filename):
+    """
+    Dosya adını güvenli şekilde doğrula
+    
+    Args:
+        filename (str): Kontrol edilecek dosya adı
+        
+    Returns:
+        bool: Geçerliyse True
+        
+    Raises:
+        ValueError: Geçersiz dosya adı
+    """
+    # Geçersiz karakterler
+    invalid_chars = r'[<>:"/\\|?*]'
+    if re.search(invalid_chars, filename):
+        raise ValueError("Dosya adı geçersiz karakterler içeriyor: < > : \\ / | ? *")
+    
+    # Yol ayırıcı kontrolü
+    if '/' in filename or '\\' in filename:
+        raise ValueError("Dosya adı yol içeremez")
+    
+    # Uzunluk kontrolü
+    if len(filename) > 255:
+        raise ValueError("Dosya adı çok uzun (max 255 karakter)")
+    
+    if len(filename) == 0:
+        raise ValueError("Dosya adı boş olamaz")
+    
+    # Ayrılmış adlar (Windows)
+    reserved = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5',
+                'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4',
+                'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9']
+    name_without_ext = filename.split('.')[0].upper()
+    if name_without_ext in reserved:
+        raise ValueError(f"'{filename}' ayrılmış bir dosya adı")
+    
+    logger.info(f"Dosya adı doğrulandı: {filename}")
+    return True
+
+
+def validate_content(content):
+    """
+    Dosya içeriğini doğrula
+    
+    Args:
+        content (str): Kontrol edilecek içerik
+        
+    Returns:
+        bool: Geçerliyse True
+        
+    Raises:
+        ValueError: Geçersiz içerik
+    """
+    # Boyut kontrolü (max 10 MB)
+    max_size = 10 * 1024 * 1024
+    content_size = len(content.encode('utf-8'))
+    
+    if content_size > max_size:
+        raise ValueError(f"İçerik çok büyük (max 10 MB, mevcut: {content_size / (1024*1024):.2f} MB)")
+    
+    logger.info(f"İçerik doğrulandı: {content_size} bytes")
+    return True
+
+
+def is_admin():
+    """
+    Yönetici yetkisiyle çalışıp çalışmadığını kontrol et
+    
+    Returns:
+        bool: Yönetici ise True
+    """
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
 
 
 def get_volume_label(drive_path):
@@ -129,46 +236,87 @@ def maybe_text_sample(data: bytes, max_chars=1000):
 
 
 def scan_drive_for_hidden(root_path: str, callback_print, stop_event):
-    """Sürücüdeki gizli dosyaları tara"""
+    """
+    Sürücüdeki gizli dosyaları tara - Optimize edilmiş
+    
+    Args:
+        root_path (str): Taranacak sürücü yolu
+        callback_print: Çıktı yazdırma fonksiyonu
+        stop_event: Durdurma eventi
+        
+    Returns:
+        list: Bulunan dosya listesi
+    """
     total_found = 0
     found_files = []
-    callback_print(f"🔍 Tarama başlatıldı: {root_path}\n", "info")
+    total_scanned = 0
+    start_time = time.time()
     
-    for dirpath, dirnames, filenames in os.walk(root_path, topdown=True,
-                                                onerror=lambda e: callback_print(f"❌ Hata: {e}\n", "error")):
-        if stop_event.is_set():
-            raise KeyboardInterrupt()
-            
-        for fname in filenames:
+    callback_print(f"🔍 Tarama başlatıldı: {root_path}\n", "info")
+    logger.info(f"Tarama başlatıldı: {root_path}")
+    
+    try:
+        for dirpath, dirnames, filenames in os.walk(root_path, topdown=True,
+                                                    onerror=lambda e: callback_print(f"❌ Hata: {e}\n", "error")):
             if stop_event.is_set():
+                logger.warning("Tarama kullanıcı tarafından durduruldu")
                 raise KeyboardInterrupt()
+            
+            # Batch işleme - Her 100 dosyada bir güncelleme
+            for i in range(0, len(filenames), 100):
+                batch = filenames[i:i+100]
+                total_scanned += len(batch)
                 
-            full = os.path.join(dirpath, fname)
-            try:
-                if is_hidden_or_system(full):
-                    total_found += 1
-                    found_files.append(full)
-                    callback_print(f"📁 [{total_found}] {full}\n", "found")
-                    
+                for fname in batch:
+                    if stop_event.is_set():
+                        raise KeyboardInterrupt()
+                        
+                    full = os.path.join(dirpath, fname)
                     try:
-                        with open(full, "rb") as f:
-                            sample = f.read(MAX_READ_BYTES)
-                    except Exception as e:
-                        callback_print(f"   ⚠️ Okunamadı: {e}\n\n", "warning")
-                        continue
+                        if is_hidden_or_system(full):
+                            total_found += 1
+                            found_files.append(full)
+                            callback_print(f"📁 [{total_found}] {full}\n", "found")
+                            logger.info(f"Gizli dosya bulundu: {full}")
+                            
+                            try:
+                                with open(full, "rb") as f:
+                                    sample = f.read(MAX_READ_BYTES)
+                            except Exception as e:
+                                callback_print(f"   ⚠️ Okunamadı: {e}\n\n", "warning")
+                                logger.warning(f"Dosya okunamadı {full}: {e}")
+                                continue
 
-                    text_sample = maybe_text_sample(sample)
-                    if text_sample is None:
-                        callback_print("   📦 Binary dosya\n\n", "info")
-                    else:
-                        callback_print("   📄 İçerik örneği:\n", "info")
-                        for line in text_sample.splitlines()[:10]:
-                            callback_print(f"   {line}\n", "content")
-                        callback_print("\n", "info")
-            except Exception as e:
-                continue
+                            text_sample = maybe_text_sample(sample)
+                            if text_sample is None:
+                                callback_print("   📦 Binary dosya\n\n", "info")
+                            else:
+                                callback_print("   📄 İçerik örneği:\n", "info")
+                                for line in text_sample.splitlines()[:10]:
+                                    callback_print(f"   {line}\n", "content")
+                                callback_print("\n", "info")
+                    except Exception as e:
+                        logger.error(f"Dosya işlenirken hata {full}: {e}")
+                        continue
                 
+                # İlerleme güncelleme - Her 500 dosyada bir
+                if total_scanned % 500 == 0:
+                    elapsed = time.time() - start_time
+                    rate = total_scanned / elapsed if elapsed > 0 else 0
+                    callback_print(f"ℹ️ İlerleme: {total_scanned} dosya tarandı ({rate:.0f} dosya/sn) - {total_found} gizli dosya\n", "info")
+                    logger.info(f"İlerleme: {total_scanned} dosya, {total_found} gizli")
+    
+    except KeyboardInterrupt:
+        elapsed = time.time() - start_time
+        callback_print(f"\n⏹️ Tarama durduruldu. Süre: {elapsed:.1f}sn\n", "warning")
+        logger.warning(f"Tarama durduruldu. {total_scanned} dosya tarandı, {total_found} gizli dosya")
+        raise
+    
+    elapsed = time.time() - start_time
     callback_print(f"✅ Tarama tamamlandı. Toplam {total_found} gizli dosya bulundu.\n", "success")
+    callback_print(f"📊 İstatistikler: {total_scanned} dosya tarandı, Süre: {elapsed:.1f}sn\n", "info")
+    logger.info(f"Tarama tamamlandı. {total_scanned} dosya, {total_found} gizli, {elapsed:.1f}sn")
+    
     return found_files
 
 
@@ -204,10 +352,58 @@ class USBManagerApp(tk.Tk):
         self.found_files = []
         self.drive_data = []  # Sürücü bilgilerini saklamak için
         
+        # Klavye kısayolları
+        self.setup_keyboard_shortcuts()
+        
         self.create_widgets()
         self.populate_drives()
         
+        # Yönetici yetkisi kontrolü
+        if not is_admin():
+            self.after(100, self.show_admin_warning)
+    
+    def setup_keyboard_shortcuts(self):
+        """Klavye kısayollarını ayarla"""
+        self.bind('<Control-r>', lambda e: self.populate_drives())  # Ctrl+R: Yenile
+        self.bind('<F5>', lambda e: self.populate_drives())         # F5: Yenile
+        self.bind('<Control-s>', lambda e: self.start_scan())       # Ctrl+S: Tara
+        self.bind('<Control-n>', lambda e: self.create_file())      # Ctrl+N: Oluştur
+        self.bind('<Escape>', lambda e: self.stop_scan())           # Esc: Durdur
+        self.bind('<Delete>', lambda e: self.delete_selected())     # Del: Sil
+        self.bind('<Control-q>', lambda e: self.quit())             # Ctrl+Q: Çık
+        logger.info("Klavye kısayolları ayarlandı")
+    
+    def show_admin_warning(self):
+        """Yönetici yetkisi uyarısı göster"""
+        response = messagebox.showwarning(
+            "Yönetici Yetkisi Önerilir",
+            "⚠️ Bazı özellikler için yönetici yetkisi gerekiyor:\n\n"
+            "• Sistem dosyası özniteliği ayarlama\n"
+            "• Gizli/sistem dosyalarını silme\n"
+            "• Dosya özniteliklerini değiştirme\n\n"
+            "Tam işlevsellik için uygulamayı yönetici olarak çalıştırmanız önerilir."
+        )
+        logger.warning("Yönetici yetkisi olmadan çalışıyor")
+        
     def create_widgets(self):
+        # Menü çubuğu
+        menubar = tk.Menu(self)
+        self.config(menu=menubar)
+        
+        # Dosya menüsü
+        file_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Dosya", menu=file_menu)
+        file_menu.add_command(label="Yenile (F5)", command=self.populate_drives, accelerator="F5")
+        file_menu.add_command(label="Taramayı Başlat (Ctrl+S)", command=self.start_scan, accelerator="Ctrl+S")
+        file_menu.add_separator()
+        file_menu.add_command(label="Çıkış (Ctrl+Q)", command=self.quit, accelerator="Ctrl+Q")
+        
+        # Yardım menüsü
+        help_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Yardım", menu=help_menu)
+        help_menu.add_command(label="Hakkında", command=self.show_about)
+        help_menu.add_command(label="Klavye Kısayolları", command=self.show_shortcuts)
+        
         # Başlık
         header = tk.Frame(self, bg=self.colors['primary'], height=60)
         header.pack(fill="x")
@@ -291,6 +487,22 @@ class USBManagerApp(tk.Tk):
         ttk.Button(scan_controls, text="▶️ Taramayı Başlat", command=self.start_scan, width=20).pack(side="left", padx=2)
         ttk.Button(scan_controls, text="⏹️ Durdur", command=self.stop_scan, width=15).pack(side="left", padx=2)
         ttk.Button(scan_controls, text="🧹 Temizle", command=self.clear_output, width=15).pack(side="left", padx=2)
+        
+        # İlerleme çubuğu
+        progress_frame = ttk.Frame(scan_tab)
+        progress_frame.pack(fill="x", pady=(5, 5))
+        
+        self.progress_var = tk.DoubleVar()
+        self.progress = ttk.Progressbar(
+            progress_frame,
+            variable=self.progress_var,
+            maximum=100,
+            mode='determinate'
+        )
+        self.progress.pack(fill="x", pady=2)
+        
+        self.progress_label = ttk.Label(progress_frame, text="Hazır", font=("Segoe UI", 8), foreground="#666")
+        self.progress_label.pack(anchor="w")
         
         ttk.Label(scan_tab, text="Tarama yapılacak sürücüyü yukarıdan seçin.", 
                  font=("Segoe UI", 9), foreground="#666").pack(anchor="w", pady=5)
@@ -406,10 +618,11 @@ class USBManagerApp(tk.Tk):
                 self.drive_info_label.config(text=f"⚠️ Bilgi alınamadı: {e}")
                 
     def create_file(self):
-        """Flash sürücüde dosya oluştur"""
+        """Flash sürücüde dosya oluştur - Validation eklendi"""
         disk = self.drive_combo.get()
         if not disk or disk.startswith("❌"):
             messagebox.showerror("Hata", "Lütfen geçerli bir USB sürücü seçin.")
+            logger.warning("USB sürücü seçilmedi")
             return
             
         disk = disk.split()[0]
@@ -420,8 +633,25 @@ class USBManagerApp(tk.Tk):
         if not filename:
             messagebox.showerror("Hata", "Lütfen bir dosya adı girin.")
             return
+        
+        # Dosya adı validasyonu
+        try:
+            validate_filename(filename)
+        except ValueError as e:
+            messagebox.showerror("Geçersiz Dosya Adı", str(e))
+            logger.error(f"Geçersiz dosya adı: {filename} - {e}")
+            return
             
         content = self.content_text.get("1.0", "end-1c")
+        
+        # İçerik validasyonu
+        try:
+            validate_content(content)
+        except ValueError as e:
+            messagebox.showerror("Geçersiz İçerik", str(e))
+            logger.error(f"İçerik validasyon hatası: {e}")
+            return
+        
         filepath = os.path.join(disk, filename)
 
         try:
@@ -429,24 +659,41 @@ class USBManagerApp(tk.Tk):
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(content)
             
-            # Dosya özniteliklerini ayarla
-            attrib_cmd = ["attrib"]
-            if self.hide_file_var.get():
-                attrib_cmd.append("+h")
-            if self.system_file_var.get():
-                attrib_cmd.append("+s")
-            if self.readonly_var.get():
-                attrib_cmd.append("+r")
-            attrib_cmd.append(filepath)
+            logger.info(f"Dosya oluşturuldu: {filepath}")
             
-            if len(attrib_cmd) > 2:
-                subprocess.run(attrib_cmd, check=True)
+            # Dosya özniteliklerini ayarla - Windows API kullan
+            attrs = 0
+            if self.hide_file_var.get():
+                attrs |= FILE_ATTRIBUTE_HIDDEN
+            if self.system_file_var.get():
+                attrs |= FILE_ATTRIBUTE_SYSTEM
+            if self.readonly_var.get():
+                attrs |= FILE_ATTRIBUTE_READONLY
+            
+            if attrs > 0:
+                result = SetFileAttributesW(filepath, attrs)
+                if not result:
+                    # Fallback: subprocess kullan
+                    logger.warning("SetFileAttributesW başarısız, subprocess kullanılıyor")
+                    attrib_cmd = ["attrib"]
+                    if self.hide_file_var.get():
+                        attrib_cmd.append("+h")
+                    if self.system_file_var.get():
+                        attrib_cmd.append("+s")
+                    if self.readonly_var.get():
+                        attrib_cmd.append("+r")
+                    attrib_cmd.append(filepath)
+                    subprocess.run(attrib_cmd, check=True)
+                else:
+                    logger.info(f"Dosya öznitelikleri ayarlandı: {attrs}")
             
             messagebox.showinfo("Başarılı", f"✅ Dosya başarıyla oluşturuldu!\n\n📁 Konum: {filepath}\n📝 Boyut: {len(content)} karakter")
             self.status_var.set(f"✅ Dosya oluşturuldu: {filename}")
+            logger.info(f"Dosya başarıyla oluşturuldu: {filepath}")
         except Exception as e:
             messagebox.showerror("Hata", f"❌ Dosya oluşturulamadı:\n{e}")
             self.status_var.set("❌ Dosya oluşturma başarısız")
+            logger.error(f"Dosya oluşturma hatası: {filepath} - {e}")
             
     def start_scan(self):
         """Taramayı başlat"""
@@ -470,7 +717,14 @@ class USBManagerApp(tk.Tk):
         self.output.insert("end", f"  🔍 GİZLİ DOSYA TARAMASI BAŞLATILDI\n", "info")
         self.output.insert("end", f"═══════════════════════════════════════════════════════\n\n", "info")
         
+        # İlerleme çubuğunu başlat
+        self.progress_var.set(0)
+        self.progress.config(mode='indeterminate')
+        self.progress.start(10)
+        self.progress_label.config(text="Tarama başlatılıyor...")
+        
         self.status_var.set(f"🔍 {root_path} taranıyor...")
+        logger.info(f"Tarama başlatıldı: {root_path}")
         self._scan_thread = threading.Thread(target=self._scan_worker, args=(root_path,), daemon=True)
         self._scan_thread.start()
         
@@ -493,13 +747,37 @@ class USBManagerApp(tk.Tk):
         try:
             self.found_files = scan_drive_for_hidden(root_path, callback_print=cb_print, stop_event=self._stop_event)
             self.update_file_combo()
+            
+            # İlerleme çubuğunu tamamla
+            self.progress.stop()
+            self.progress.config(mode='determinate')
+            self.progress_var.set(100)
+            self.progress_label.config(text=f"Tamamlandı - {len(self.found_files)} gizli dosya bulundu")
+            
             self.status_var.set(f"✅ Tarama tamamlandı. {len(self.found_files)} dosya bulundu.")
+            logger.info(f"Tarama başarıyla tamamlandı: {len(self.found_files)} dosya")
         except KeyboardInterrupt:
             self.output.insert("end", "\n⏹️ Tarama kullanıcı tarafından durduruldu.\n", "warning")
+            
+            # İlerleme çubuğunu durdur
+            self.progress.stop()
+            self.progress.config(mode='determinate')
+            self.progress_var.set(0)
+            self.progress_label.config(text="Durduruldu")
+            
             self.status_var.set("⏹️ Tarama durduruldu.")
+            logger.warning("Tarama durduruldu")
         except Exception as e:
             self.output.insert("end", f"\n❌ Tarama sırasında hata: {e}\n", "error")
+            
+            # İlerleme çubuğunu sıfırla
+            self.progress.stop()
+            self.progress.config(mode='determinate')
+            self.progress_var.set(0)
+            self.progress_label.config(text="Hata oluştu")
+            
             self.status_var.set("❌ Hata oluştu.")
+            logger.error(f"Tarama hatası: {e}")
     
     def update_file_combo(self):
         """Bulunan dosyaları combobox'a ekle"""
@@ -755,8 +1033,69 @@ class USBManagerApp(tk.Tk):
         """Çıktıyı filtrele (basit arama)"""
         # Bu özellik gelecekte eklenebilir
         pass
+    
+    def show_about(self):
+        """Hakkında penceresi göster"""
+        about_text = f"""
+USB Flash Sürücü Yöneticisi
+Versiyon: 1.0.0
+
+Gelişmiş USB sürücü dosya yönetimi ve güvenlik aracı
+
+Yazarlar: Burak TEMUR ve Arda DEMİRHAN
+Copyright © 2025 - Tüm hakları saklıdır
+
+Özellikler:
+• Gizli dosya oluşturma
+• Sistem dosyası tarama
+• Güvenli dosya silme
+• USB'ler arası kopyalama
+• Rapor kaydetme
+
+Lisans: Proprietary
+Platform: Windows
+        """
+        messagebox.showinfo("🔧 Hakkında", about_text)
+        logger.info("Hakkında penceresi görüntülendi")
+    
+    def show_shortcuts(self):
+        """Klavye kısayollarını göster"""
+        shortcuts_text = """
+⌨️ Klavye Kısayolları
+
+F5 veya Ctrl+R   - Sürücüleri yenile
+Ctrl+S           - Taramayı başlat
+Ctrl+N           - Dosya oluştur
+Esc              - Taramayı durdur
+Delete           - Seçili dosyayı sil
+Ctrl+Q           - Uygulamadan çık
+
+💡 İpuçları:
+• Dosya seçmek için combobox veya output alanını kullanın
+• Tam işlevsellik için yönetici yetkisi gerekir
+• İlerleme bilgisi output alanında görüntülenir
+        """
+        messagebox.showinfo("⌨️ Klavye Kısayolları", shortcuts_text)
+        logger.info("Klavye kısayolları penceresi görüntülendi")
 
 
 if __name__ == "__main__":
-    app = USBManagerApp()
-    app.mainloop()
+    logger.info("="*50)
+    logger.info("USB Manager başlatılıyor...")
+    logger.info(f"Python versiyonu: {sys.version}")
+    logger.info(f"Platform: {sys.platform}")
+    
+    # Yönetici yetki kontrolü
+    admin_status = is_admin()
+    logger.info(f"Yönetici yetkisi: {admin_status}")
+    
+    try:
+        app = USBManagerApp()
+        logger.info("Uygulama başlatıldı")
+        app.mainloop()
+    except Exception as e:
+        logger.error(f"Uygulama hatası: {e}")
+        messagebox.showerror("Kritik Hata", f"Uygulama başlatılamadı:\n{e}")
+    finally:
+        logger.info("Uygulama kapatıldı")
+        logger.info("="*50)

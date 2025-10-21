@@ -7,13 +7,16 @@ import os
 
 # Read the contents of README file
 def read_file(filename):
-    with open(os.path.join(os.path.dirname(__file__), 'docs', filename), encoding='utf-8') as f:
-        return f.read()
+    filepath = os.path.join(os.path.dirname(__file__), filename)
+    if os.path.exists(filepath):
+        with open(filepath, encoding='utf-8') as f:
+            return f.read()
+    return "USB Manager - Advanced USB Drive File Management and Security Tool"
 
 setup(
     name='usbmanager',
     version='1.0.0',
-    author='Burak',
+    author='Burak TEMUR and Arda DEMİRHAN',
     description='Python-based tool for advanced USB drive file management and security',
     long_description=read_file('README.md'),
     long_description_content_type='text/markdown',

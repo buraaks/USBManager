@@ -3,7 +3,7 @@
 """
 Secret Files Creator - USB Hidden File Creation Tool
 
-Copyright (c) 2025 Burak. All rights reserved.
+Copyright (c) 2025 Burak TEMUR and Arda DEMİRHAN. All rights reserved.
 This software is proprietary. Unauthorized use is prohibited.
 """
 

@@ -46,3 +46,17 @@ desktop.ini
 *.bak
 *.tmp
 .gitattributes
+
+# USB Manager Specific
+logs/
+config.ini.user
+backups/
+
+# Test coverage
+htmlcov/
+.coverage
+.pytest_cache/
+.tox/
+
+# Distribution
+*.whl
