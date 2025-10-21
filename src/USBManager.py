@@ -55,6 +55,126 @@ MAX_READ_BYTES = 4096
 DEFAULT_FILENAME = "a3f9c7b2.dat"
 DEFAULT_TOKEN = "USB-AUTH-2442C3D3"
 
+# Dil sözlükleri
+LANGUAGES = {
+    'tr': {
+        # Menü
+        'menu_file': 'Dosya',
+        'menu_help': 'Yardım',
+        'menu_language': 'Dil',
+        'menu_refresh': 'Yenile (F5)',
+        'menu_start_scan': 'Taramayı Başlat (Ctrl+S)',
+        'menu_exit': 'Çıkış (Ctrl+Q)',
+        'menu_about': 'Hakkında',
+        'menu_shortcuts': 'Klavye Kısayolları',
+        
+        # Başlık
+        'title': '🔧 USB Flash Sürücü Yönetim Merkezi',
+        
+        # Sol panel
+        'panel_drive_info': '📏 Sürücü Bilgileri ve İşlemler',
+        'label_usb_drive': 'USB Sürücü:',
+        'btn_refresh': '🔄 Yenile',
+        
+        # Sekmeler
+        'tab_create_file': '📝 Dosya Oluştur',
+        'tab_scan_files': '🔍 Gizli Dosya Tara',
+        
+        # Dosya oluştur sekmesi
+        'label_filename': 'Dosya Adı:',
+        'label_content': 'İçerik (Çok satırlı metin):',
+        'cb_hide_file': 'Dosyayı gizle',
+        'cb_system_file': 'Sistem dosyası yap',
+        'cb_readonly': 'Salt okunur',
+        'btn_create_file': '✅ Dosyayı Oluştur',
+        
+        # Tarama sekmesi
+        'btn_start_scan': '▶️ Taramayı Başlat',
+        'btn_stop': '⏹️ Durdur',
+        'btn_clear': '🧹 Temizle',
+        'label_ready': 'Hazır',
+        'label_scan_info': 'Tarama yapılacak sürücüyü yukarıdan seçin.',
+        
+        # Sağ panel
+        'panel_found_files': '📋 Bulunan Gizli Dosyalar',
+        'label_filter': '🔎 Filtre:',
+        'label_file_selection': 'Dosya Seçimi:',
+        'label_file_operations': 'Seçili Dosya İşlemleri:',
+        
+        # Dosya işlemleri butonları
+        'btn_delete': '🗑️ Dosyayı Sil',
+        'btn_properties': '👁️ Özellikleri Göster',
+        'btn_copy_usb': '📋 USB\'ye Kopyala',
+        'btn_save_report': '💾 Raporu Kaydet',
+        
+        # Durum çubuğu
+        'status_ready': '✅ Hazır',
+        
+        # Mesajlar
+        'no_usb_found': '❌ Hiçbir USB sürücü bulunamadı',
+        'insert_usb': 'USB flash sürücü takın ve yenile butonuna basın.',
+        'no_files_found': '❌ Bulunan dosya yok',
+    },
+    'en': {
+        # Menu
+        'menu_file': 'File',
+        'menu_help': 'Help',
+        'menu_language': 'Language',
+        'menu_refresh': 'Refresh (F5)',
+        'menu_start_scan': 'Start Scan (Ctrl+S)',
+        'menu_exit': 'Exit (Ctrl+Q)',
+        'menu_about': 'About',
+        'menu_shortcuts': 'Keyboard Shortcuts',
+        
+        # Title
+        'title': '🔧 USB Flash Drive Management Center',
+        
+        # Left panel
+        'panel_drive_info': '📏 Drive Information and Operations',
+        'label_usb_drive': 'USB Drive:',
+        'btn_refresh': '🔄 Refresh',
+        
+        # Tabs
+        'tab_create_file': '📝 Create File',
+        'tab_scan_files': '🔍 Scan Hidden Files',
+        
+        # Create file tab
+        'label_filename': 'File Name:',
+        'label_content': 'Content (Multi-line text):',
+        'cb_hide_file': 'Hide file',
+        'cb_system_file': 'Make system file',
+        'cb_readonly': 'Read-only',
+        'btn_create_file': '✅ Create File',
+        
+        # Scan tab
+        'btn_start_scan': '▶️ Start Scan',
+        'btn_stop': '⏹️ Stop',
+        'btn_clear': '🧹 Clear',
+        'label_ready': 'Ready',
+        'label_scan_info': 'Select the drive to scan from above.',
+        
+        # Right panel
+        'panel_found_files': '📋 Found Hidden Files',
+        'label_filter': '🔎 Filter:',
+        'label_file_selection': 'File Selection:',
+        'label_file_operations': 'Selected File Operations:',
+        
+        # File operation buttons
+        'btn_delete': '🗑️ Delete File',
+        'btn_properties': '👁️ Show Properties',
+        'btn_copy_usb': '📋 Copy to USB',
+        'btn_save_report': '💾 Save Report',
+        
+        # Status bar
+        'status_ready': '✅ Ready',
+        
+        # Messages
+        'no_usb_found': '❌ No USB drive found',
+        'insert_usb': 'Insert USB flash drive and click refresh button.',
+        'no_files_found': '❌ No files found',
+    }
+}
+
 # Logging yapılandırması
 log_dir = os.path.join(os.path.dirname(__file__), "logs")
 os.makedirs(log_dir, exist_ok=True)
@@ -323,6 +443,10 @@ def scan_drive_for_hidden(root_path: str, callback_print, stop_event):
 class USBManagerApp(tk.Tk):
     def __init__(self):
         super().__init__()
+        
+        # Varsayılan dil (Türkçe)
+        self.current_language = 'tr'
+        
         self.title("USB Flash Sürücü Yöneticisi - Gelişmiş Araç")
         self.geometry("1100x700")
         self.configure(bg="#f0f0f0")
@@ -373,6 +497,28 @@ class USBManagerApp(tk.Tk):
         self.bind('<Control-q>', lambda e: self.quit())             # Ctrl+Q: Çık
         logger.info("Klavye kısayolları ayarlandı")
     
+    def t(self, key: str) -> str:
+        """Dil çevirisi için yardımcı fonksiyon"""
+        return LANGUAGES.get(self.current_language, LANGUAGES['tr']).get(key, key)
+    
+    def change_language(self, lang):
+        """Dili değiştir ve arayüzü güncelle"""
+        self.current_language = lang
+        logger.info(f"Dil değiştirildi: {lang}")
+        
+        # Arayüzü yeniden oluştur
+        for widget in self.winfo_children():
+            widget.destroy()
+        
+        self.create_widgets()
+        self.populate_drives()
+        
+        # Durum mesajı
+        if lang == 'tr':
+            messagebox.showinfo("İşlem Başarılı", "✅ Dil Türkçe olarak ayarlandı.")
+        else:
+            messagebox.showinfo("Operation Successful", "✅ Language set to English.")
+    
     def show_admin_warning(self):
         """Yönetici yetkisi uyarısı göster"""
         response = messagebox.showwarning(
@@ -392,24 +538,30 @@ class USBManagerApp(tk.Tk):
         
         # Dosya menüsü
         file_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Dosya", menu=file_menu)
-        file_menu.add_command(label="Yenile (F5)", command=self.populate_drives, accelerator="F5")
-        file_menu.add_command(label="Taramayı Başlat (Ctrl+S)", command=self.start_scan, accelerator="Ctrl+S")
+        menubar.add_cascade(label=self.t('menu_file'), menu=file_menu)
+        file_menu.add_command(label=self.t('menu_refresh'), command=self.populate_drives, accelerator="F5")
+        file_menu.add_command(label=self.t('menu_start_scan'), command=self.start_scan, accelerator="Ctrl+S")
         file_menu.add_separator()
-        file_menu.add_command(label="Çıkış (Ctrl+Q)", command=self.quit, accelerator="Ctrl+Q")
+        file_menu.add_command(label=self.t('menu_exit'), command=self.quit, accelerator="Ctrl+Q")
+        
+        # Dil menüsü
+        lang_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label=self.t('menu_language'), menu=lang_menu)
+        lang_menu.add_command(label="🇹🇷 Türkçe", command=lambda: self.change_language('tr'))
+        lang_menu.add_command(label="🇬🇧 English", command=lambda: self.change_language('en'))
         
         # Yardım menüsü
         help_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Yardım", menu=help_menu)
-        help_menu.add_command(label="Hakkında", command=self.show_about)
-        help_menu.add_command(label="Klavye Kısayolları", command=self.show_shortcuts)
+        menubar.add_cascade(label=self.t('menu_help'), menu=help_menu)
+        help_menu.add_command(label=self.t('menu_about'), command=self.show_about)
+        help_menu.add_command(label=self.t('menu_shortcuts'), command=self.show_shortcuts)
         
         # Başlık
         header = tk.Frame(self, bg=self.colors['primary'], height=60)
         header.pack(fill="x")
         header.pack_propagate(False)
         
-        title_label = tk.Label(header, text="🔧 USB Flash Sürücü Yönetim Merkezi", 
+        title_label = tk.Label(header, text=self.t('title'), 
                               font=("Segoe UI", 16, "bold"), 
                               bg=self.colors['primary'], 
                               fg=self.colors['light'])
@@ -420,14 +572,14 @@ class USBManagerApp(tk.Tk):
         main_container.pack(fill="both", expand=True, padx=10, pady=10)
         
         # Sol panel - Sürücü Seçimi ve İşlemler
-        left_panel = ttk.LabelFrame(main_container, text="📌 Sürücü Bilgileri ve İşlemler", padding=10)
+        left_panel = ttk.LabelFrame(main_container, text=self.t('panel_drive_info'), padding=10)
         left_panel.pack(side="left", fill="both", expand=True, padx=(0, 5))
         
         # Sürücü seçimi
         drive_frame = ttk.Frame(left_panel)
         drive_frame.pack(fill="x", pady=(0, 10))
         
-        ttk.Label(drive_frame, text="USB Sürücü:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        ttk.Label(drive_frame, text=self.t('label_usb_drive'), font=("Segoe UI", 10, "bold")).pack(anchor="w")
         
         drive_select_frame = ttk.Frame(drive_frame)
         drive_select_frame.pack(fill="x", pady=5)
@@ -436,7 +588,7 @@ class USBManagerApp(tk.Tk):
         self.drive_combo.pack(side="left", fill="x", expand=True)
         self.drive_combo.bind("<<ComboboxSelected>>", self.on_drive_selected)
         
-        ttk.Button(drive_select_frame, text="🔄 Yenile", command=self.populate_drives, width=12).pack(side="left", padx=(5, 0))
+        ttk.Button(drive_select_frame, text=self.t('btn_refresh'), command=self.populate_drives, width=12).pack(side="left", padx=(5, 0))
         
         # Sürücü detayları
         self.drive_info_label = ttk.Label(drive_frame, text="", font=("Segoe UI", 9), foreground="#666")
@@ -448,14 +600,14 @@ class USBManagerApp(tk.Tk):
         
         # Sekme 1: Dosya Oluştur
         create_tab = ttk.Frame(self.notebook, padding=10)
-        self.notebook.add(create_tab, text="📝 Dosya Oluştur")
+        self.notebook.add(create_tab, text=self.t('tab_create_file'))
         
-        ttk.Label(create_tab, text="Dosya Adı:", font=("Segoe UI", 9)).pack(anchor="w", pady=(5, 2))
+        ttk.Label(create_tab, text=self.t('label_filename'), font=("Segoe UI", 9)).pack(anchor="w", pady=(5, 2))
         self.filename_entry = ttk.Entry(create_tab, width=40, font=("Segoe UI", 9))
         self.filename_entry.pack(fill="x", pady=(0, 10))
         self.filename_entry.insert(0, DEFAULT_FILENAME)
         
-        ttk.Label(create_tab, text="İçerik (Çok satırlı metin):", font=("Segoe UI", 9)).pack(anchor="w", pady=(5, 2))
+        ttk.Label(create_tab, text=self.t('label_content'), font=("Segoe UI", 9)).pack(anchor="w", pady=(5, 2))
         self.content_text = scrolledtext.ScrolledText(create_tab, height=10, font=("Consolas", 9), wrap="word")
         self.content_text.pack(fill="both", expand=True, pady=(0, 10))
         self.content_text.insert("1.0", DEFAULT_TOKEN)
@@ -464,29 +616,29 @@ class USBManagerApp(tk.Tk):
         options_frame.pack(fill="x", pady=5)
         
         self.hide_file_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(options_frame, text="Dosyayı gizle", variable=self.hide_file_var).pack(side="left", padx=5)
+        ttk.Checkbutton(options_frame, text=self.t('cb_hide_file'), variable=self.hide_file_var).pack(side="left", padx=5)
         
         self.system_file_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(options_frame, text="Sistem dosyası yap", variable=self.system_file_var).pack(side="left", padx=5)
+        ttk.Checkbutton(options_frame, text=self.t('cb_system_file'), variable=self.system_file_var).pack(side="left", padx=5)
         
         self.readonly_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(options_frame, text="Salt okunur", variable=self.readonly_var).pack(side="left", padx=5)
+        ttk.Checkbutton(options_frame, text=self.t('cb_readonly'), variable=self.readonly_var).pack(side="left", padx=5)
         
         create_btn_frame = ttk.Frame(create_tab)
         create_btn_frame.pack(fill="x", pady=10)
         
-        ttk.Button(create_btn_frame, text="✅ Dosyayı Oluştur", command=self.create_file, style="Success.TButton").pack(fill="x")
+        ttk.Button(create_btn_frame, text=self.t('btn_create_file'), command=self.create_file, style="Success.TButton").pack(fill="x")
         
         # Sekme 2: Gizli Dosya Tarama
         scan_tab = ttk.Frame(self.notebook, padding=10)
-        self.notebook.add(scan_tab, text="🔍 Gizli Dosya Tara")
+        self.notebook.add(scan_tab, text=self.t('tab_scan_files'))
         
         scan_controls = ttk.Frame(scan_tab)
         scan_controls.pack(fill="x", pady=(0, 10))
         
-        ttk.Button(scan_controls, text="▶️ Taramayı Başlat", command=self.start_scan, width=20).pack(side="left", padx=2)
-        ttk.Button(scan_controls, text="⏹️ Durdur", command=self.stop_scan, width=15).pack(side="left", padx=2)
-        ttk.Button(scan_controls, text="🧹 Temizle", command=self.clear_output, width=15).pack(side="left", padx=2)
+        ttk.Button(scan_controls, text=self.t('btn_start_scan'), command=self.start_scan, width=20).pack(side="left", padx=2)
+        ttk.Button(scan_controls, text=self.t('btn_stop'), command=self.stop_scan, width=15).pack(side="left", padx=2)
+        ttk.Button(scan_controls, text=self.t('btn_clear'), command=self.clear_output, width=15).pack(side="left", padx=2)
         
         # İlerleme çubuğu
         progress_frame = ttk.Frame(scan_tab)
@@ -501,21 +653,21 @@ class USBManagerApp(tk.Tk):
         )
         self.progress.pack(fill="x", pady=2)
         
-        self.progress_label = ttk.Label(progress_frame, text="Hazır", font=("Segoe UI", 8), foreground="#666")
+        self.progress_label = ttk.Label(progress_frame, text=self.t('label_ready'), font=("Segoe UI", 8), foreground="#666")
         self.progress_label.pack(anchor="w")
         
-        ttk.Label(scan_tab, text="Tarama yapılacak sürücüyü yukarıdan seçin.", 
+        ttk.Label(scan_tab, text=self.t('label_scan_info'), 
                  font=("Segoe UI", 9), foreground="#666").pack(anchor="w", pady=5)
         
         # Sağ panel - Bulunan Dosyalar
-        right_panel = ttk.LabelFrame(main_container, text="📋 Bulunan Gizli Dosyalar", padding=10)
+        right_panel = ttk.LabelFrame(main_container, text=self.t('panel_found_files'), padding=10)
         right_panel.pack(side="left", fill="both", expand=True, padx=(5, 0))
         
         # Arama çubuğu
         search_frame = ttk.Frame(right_panel)
         search_frame.pack(fill="x", pady=(0, 5))
         
-        ttk.Label(search_frame, text="🔎 Filtre:", font=("Segoe UI", 9)).pack(side="left", padx=2)
+        ttk.Label(search_frame, text=self.t('label_filter'), font=("Segoe UI", 9)).pack(side="left", padx=2)
         self.search_entry = ttk.Entry(search_frame, font=("Segoe UI", 9))
         self.search_entry.pack(side="left", fill="x", expand=True, padx=2)
         self.search_entry.bind("<KeyRelease>", self.filter_output)
@@ -546,7 +698,7 @@ class USBManagerApp(tk.Tk):
         file_select_frame = ttk.Frame(right_panel)
         file_select_frame.pack(fill="x", pady=(5, 0))
         
-        ttk.Label(file_select_frame, text="Dosya Seçimi:", font=("Segoe UI", 9, "bold")).pack(anchor="w", pady=2)
+        ttk.Label(file_select_frame, text=self.t('label_file_selection'), font=("Segoe UI", 9, "bold")).pack(anchor="w", pady=2)
         
         self.file_combo = ttk.Combobox(file_select_frame, state="readonly", font=("Segoe UI", 8))
         self.file_combo.pack(fill="x", pady=2)
@@ -556,7 +708,7 @@ class USBManagerApp(tk.Tk):
         file_ops_frame = ttk.Frame(right_panel)
         file_ops_frame.pack(fill="x", pady=(5, 0))
         
-        ttk.Label(file_ops_frame, text="Seçili Dosya İşlemleri:", font=("Segoe UI", 9, "bold")).pack(anchor="w", pady=2)
+        ttk.Label(file_ops_frame, text=self.t('label_file_operations'), font=("Segoe UI", 9, "bold")).pack(anchor="w", pady=2)
         
         # Grid layout kullan - 2 satır, 2 sütun
         ops_grid = ttk.Frame(file_ops_frame)
@@ -566,12 +718,12 @@ class USBManagerApp(tk.Tk):
         button_width = 28
         
         # 1. satır
-        ttk.Button(ops_grid, text="🗑️ Dosyayı Sil", command=self.delete_selected, width=button_width).grid(row=0, column=0, padx=2, pady=2, sticky="ew")
-        ttk.Button(ops_grid, text="👁️ Özellikleri Göster", command=self.show_file_properties, width=button_width).grid(row=0, column=1, padx=2, pady=2, sticky="ew")
+        ttk.Button(ops_grid, text=self.t('btn_delete'), command=self.delete_selected, width=button_width).grid(row=0, column=0, padx=2, pady=2, sticky="ew")
+        ttk.Button(ops_grid, text=self.t('btn_properties'), command=self.show_file_properties, width=button_width).grid(row=0, column=1, padx=2, pady=2, sticky="ew")
         
         # 2. satır
-        ttk.Button(ops_grid, text="📋 USB'ye Kopyala", command=self.copy_to_usb, width=button_width).grid(row=1, column=0, padx=2, pady=2, sticky="ew")
-        ttk.Button(ops_grid, text="💾 Raporu Kaydet", command=self.save_report, width=button_width).grid(row=1, column=1, padx=2, pady=2, sticky="ew")
+        ttk.Button(ops_grid, text=self.t('btn_copy_usb'), command=self.copy_to_usb, width=button_width).grid(row=1, column=0, padx=2, pady=2, sticky="ew")
+        ttk.Button(ops_grid, text=self.t('btn_save_report'), command=self.save_report, width=button_width).grid(row=1, column=1, padx=2, pady=2, sticky="ew")
         
         # Sütunları eşit genişlikte yap
         ops_grid.columnconfigure(0, weight=1)
@@ -582,7 +734,7 @@ class USBManagerApp(tk.Tk):
         status_frame.pack(fill="x", side="bottom")
         status_frame.pack_propagate(False)
         
-        self.status_var = tk.StringVar(value="✅ Hazır")
+        self.status_var = tk.StringVar(value=self.t('status_ready'))
         status_label = tk.Label(status_frame, textvariable=self.status_var, 
                                font=("Segoe UI", 9), bg=self.colors['dark'], 
                                fg=self.colors['light'], anchor="w", padx=10)
@@ -598,7 +750,7 @@ class USBManagerApp(tk.Tk):
             display.append(f"{d['mountpoint']} - {d['label']} - {d['fstype']} ({d['size']})")
         
         if not display:
-            display = ["❌ Hiçbir USB sürücü bulunamadı"]
+            display = [self.t('no_usb_found')]
             self.drive_data = []
             
         self.drive_combo["values"] = display
@@ -606,7 +758,7 @@ class USBManagerApp(tk.Tk):
             self.drive_combo.current(0)
             self.on_drive_selected(None)
         else:
-            self.drive_info_label.config(text="USB flash sürücü takın ve yenile butonuna basın.")
+            self.drive_info_label.config(text=self.t('insert_usb'))
             
     def on_drive_selected(self, event):
         """Sürücü seçildiğinde bilgileri göster"""
@@ -789,7 +941,7 @@ class USBManagerApp(tk.Tk):
     def update_file_combo(self):
         """Bulunan dosyaları combobox'a ekle"""
         if not self.found_files:
-            self.file_combo["values"] = ["❌ Bulunan dosya yok"]
+            self.file_combo["values"] = [self.t('no_files_found')]
             return
         
         display_files = []
