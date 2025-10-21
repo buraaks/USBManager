@@ -26,25 +26,12 @@ FILE_ATTRIBUTE_HIDDEN = 0x2
 FILE_ATTRIBUTE_SYSTEM = 0x4
 MAX_READ_BYTES = 4096
 
-def is_hidden_or_system(path: str) -> bool:
-    try:
-        attrs = GetFileAttributesW(path)
-        if attrs == 0xFFFFFFFF:
-            return False
-        return bool(attrs & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM))
-    except Exception:
-        return False
+# Import utility functions
+from .utils import is_hidden_or_system, maybe_text_sample
 
-def maybe_text_sample(data: bytes, max_chars=1000):
-    if not data:
-        return ""
-    if b'\x00' in data:
-        return None
-    try:
-        text = data.decode('utf-8', errors='replace')
-    except Exception:
-        return None
-    return text[:max_chars]
+# Utility functions imported from utils.py
+# def is_hidden_or_system(path: str) -> bool:
+# def maybe_text_sample(data: bytes, max_chars=1000):
 
 def scan_drive_for_hidden(root_path: str, callback_print):
     total_found = 0

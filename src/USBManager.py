@@ -22,6 +22,13 @@ from datetime import datetime
 import time
 import re
 
+# Encryption support
+try:
+    from .encryption import encrypt_file, decrypt_file, encrypt_text, decrypt_text
+except ImportError:
+    # Fallback for direct script execution
+    from encryption import encrypt_file, decrypt_file, encrypt_text, decrypt_text
+
 # --- Windows API ---
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 
@@ -51,9 +58,17 @@ FILE_ATTRIBUTE_HIDDEN = 0x2
 FILE_ATTRIBUTE_SYSTEM = 0x4
 MAX_READ_BYTES = 4096
 
+# Import utility functions
+try:
+    from .utils import is_hidden_or_system, maybe_text_sample
+except ImportError:
+    # Fallback for direct script execution
+    from utils import is_hidden_or_system, maybe_text_sample
+
 # Varsayılan dosya adı ve token
-DEFAULT_FILENAME = "a3f9c7b2.dat"
-DEFAULT_TOKEN = "USB-AUTH-2442C3D3"
+# Default configuration values - now defined in config file
+DEFAULT_FILENAME = "secret_file.dat"
+DEFAULT_TOKEN = "ENTER_YOUR_TOKEN_HERE"
 
 # Dil sözlükleri
 LANGUAGES = {
@@ -106,6 +121,8 @@ LANGUAGES = {
         'btn_properties': '👁️ Özellikleri Göster',
         'btn_copy_usb': '📋 USB\'ye Kopyala',
         'btn_save_report': '💾 Raporu Kaydet',
+        'btn_encrypt': '🔒 Şifrele',
+        'btn_decrypt': '🔓 Deşifre Et',
         
         # Durum çubuğu
         'status_ready': '✅ Hazır',
@@ -164,6 +181,8 @@ LANGUAGES = {
         'btn_properties': '👁️ Show Properties',
         'btn_copy_usb': '📋 Copy to USB',
         'btn_save_report': '💾 Save Report',
+        'btn_encrypt': '🔒 Encrypt',
+        'btn_decrypt': '🔓 Decrypt',
         
         # Status bar
         'status_ready': '✅ Ready',
@@ -331,28 +350,9 @@ def get_removable_drives():
     return drives
 
 
-def is_hidden_or_system(path: str) -> bool:
-    """Dosyanın gizli veya sistem dosyası olup olmadığını kontrol et"""
-    try:
-        attrs = GetFileAttributesW(path)
-        if attrs == 0xFFFFFFFF:
-            return False
-        return bool(attrs & (FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM))
-    except Exception:
-        return False
-
-
-def maybe_text_sample(data: bytes, max_chars=1000):
-    """Binary veriden metin örneği çıkar"""
-    if not data:
-        return ""
-    if b'\x00' in data:
-        return None
-    try:
-        text = data.decode('utf-8', errors='replace')
-    except Exception:
-        return None
-    return text[:max_chars]
+# Utility functions imported from utils.py
+# def is_hidden_or_system(path: str) -> bool:
+# def maybe_text_sample(data: bytes, max_chars=1000):
 
 
 def scan_drive_for_hidden(root_path: str, callback_print, stop_event):
@@ -376,15 +376,17 @@ def scan_drive_for_hidden(root_path: str, callback_print, stop_event):
     logger.info(f"Tarama başlatıldı: {root_path}")
     
     try:
+        # Use a generator to avoid loading all files into memory at once
         for dirpath, dirnames, filenames in os.walk(root_path, topdown=True,
                                                     onerror=lambda e: callback_print(f"❌ Hata: {e}\n", "error")):
             if stop_event.is_set():
                 logger.warning("Tarama kullanıcı tarafından durduruldu")
                 raise KeyboardInterrupt()
             
-            # Batch işleme - Her 100 dosyada bir güncelleme
-            for i in range(0, len(filenames), 100):
-                batch = filenames[i:i+100]
+            # Process files in smaller batches to reduce memory usage
+            batch_size = 50  # Reduced from 100 for better memory management
+            for i in range(0, len(filenames), batch_size):
+                batch = filenames[i:i+batch_size]
                 total_scanned += len(batch)
                 
                 for fname in batch:
@@ -412,19 +414,22 @@ def scan_drive_for_hidden(root_path: str, callback_print, stop_event):
                                 callback_print("   📦 Binary dosya\n\n", "info")
                             else:
                                 callback_print("   📄 İçerik örneği:\n", "info")
-                                for line in text_sample.splitlines()[:10]:
+                                for line in text_sample.splitlines()[:5]:  # Reduced from 10 lines
                                     callback_print(f"   {line}\n", "content")
                                 callback_print("\n", "info")
                     except Exception as e:
                         logger.error(f"Dosya işlenirken hata {full}: {e}")
                         continue
                 
-                # İlerleme güncelleme - Her 500 dosyada bir
-                if total_scanned % 500 == 0:
+                # More frequent progress updates for better UX
+                if total_scanned % 100 == 0:  # Changed from 500 to 100
                     elapsed = time.time() - start_time
                     rate = total_scanned / elapsed if elapsed > 0 else 0
                     callback_print(f"ℹ️ İlerleme: {total_scanned} dosya tarandı ({rate:.0f} dosya/sn) - {total_found} gizli dosya\n", "info")
                     logger.info(f"İlerleme: {total_scanned} dosya, {total_found} gizli")
+                    
+                    # Yield control to the GUI thread more frequently
+                    time.sleep(0.01)
     
     except KeyboardInterrupt:
         elapsed = time.time() - start_time
@@ -710,7 +715,7 @@ class USBManagerApp(tk.Tk):
         
         ttk.Label(file_ops_frame, text=self.t('label_file_operations'), font=("Segoe UI", 9, "bold")).pack(anchor="w", pady=2)
         
-        # Grid layout kullan - 2 satır, 2 sütun
+        # Grid layout kullan - 3 satır, 2 sütun
         ops_grid = ttk.Frame(file_ops_frame)
         ops_grid.pack(fill="x", pady=2)
         
@@ -724,6 +729,10 @@ class USBManagerApp(tk.Tk):
         # 2. satır
         ttk.Button(ops_grid, text=self.t('btn_copy_usb'), command=self.copy_to_usb, width=button_width).grid(row=1, column=0, padx=2, pady=2, sticky="ew")
         ttk.Button(ops_grid, text=self.t('btn_save_report'), command=self.save_report, width=button_width).grid(row=1, column=1, padx=2, pady=2, sticky="ew")
+        
+        # 3. satır - Şifreleme işlemleri
+        ttk.Button(ops_grid, text=self.t('btn_encrypt'), command=self.encrypt_selected, width=button_width).grid(row=2, column=0, padx=2, pady=2, sticky="ew")
+        ttk.Button(ops_grid, text=self.t('btn_decrypt'), command=self.decrypt_selected, width=button_width).grid(row=2, column=1, padx=2, pady=2, sticky="ew")
         
         # Sütunları eşit genişlikte yap
         ops_grid.columnconfigure(0, weight=1)
@@ -1180,6 +1189,87 @@ class USBManagerApp(tk.Tk):
             self.status_var.set(f"✅ Rapor kaydedildi: {os.path.basename(path)}")
         except Exception as e:
             messagebox.showerror("Hata", f"❌ Rapor kaydedilemedi:\n{e}")
+            
+    def encrypt_selected(self):
+        """Seçili dosyayı şifrele"""
+        filepath = self.get_selected_file()
+        
+        if not filepath:
+            messagebox.showwarning("Seçim Yok", "Lütfen şifrelenecek dosyayı seçin (combobox veya output alanından).")
+            return
+            
+        # Şifreleme için şifre iste
+        password = self.ask_password("Şifreleme için bir şifre girin:")
+        if not password:
+            return
+            
+        try:
+            encrypted_path = encrypt_file(filepath, password)
+            messagebox.showinfo("Başarılı", f"✅ Dosya şifrelendi:\n{encrypted_path}")
+            self.output.insert("end", f"\n🔒 [ŞİFRELENDİ] {filepath} -> {encrypted_path}\n", "success")
+            self.status_var.set(f"✅ Dosya şifrelendi: {os.path.basename(filepath)}")
+        except Exception as e:
+            messagebox.showerror("Hata", f"❌ Dosya şifrelenemedi:\n{e}")
+            self.status_var.set("❌ Şifreleme başarısız")
+            
+    def decrypt_selected(self):
+        """Seçili dosyanın şifresini çöz"""
+        filepath = self.get_selected_file()
+        
+        if not filepath:
+            messagebox.showwarning("Seçim Yok", "Lütfen şifresi çözülecek dosyayı seçin (combobox veya output alanından).")
+            return
+            
+        # Şifre çözme için şifre iste
+        password = self.ask_password("Şifre çözme için şifreyi girin:")
+        if not password:
+            return
+            
+        try:
+            decrypted_path = decrypt_file(filepath, password)
+            messagebox.showinfo("Başarılı", f"✅ Dosya şifresi çözüldü:\n{decrypted_path}")
+            self.output.insert("end", f"\n🔓 [ŞİFRESİ ÇÖZÜLDÜ] {filepath} -> {decrypted_path}\n", "success")
+            self.status_var.set(f"✅ Dosya şifresi çözüldü: {os.path.basename(filepath)}")
+        except Exception as e:
+            messagebox.showerror("Hata", f"❌ Dosya şifresi çözülemedi:\n{e}")
+            self.status_var.set("❌ Şifre çözme başarısız")
+            
+    def ask_password(self, prompt):
+        """Kullanıcıdan şifre iste"""
+        # Basit bir şifre dialogu oluştur
+        dialog = tk.Toplevel(self)
+        dialog.title("Şifre Girişi")
+        dialog.geometry("300x150")
+        dialog.transient(self)
+        dialog.grab_set()
+        
+        ttk.Label(dialog, text=prompt, font=("Segoe UI", 10)).pack(pady=10)
+        
+        password_entry = ttk.Entry(dialog, show="*", width=30)
+        password_entry.pack(pady=5)
+        password_entry.focus()
+        
+        password_var = tk.StringVar()
+        
+        def on_ok():
+            password_var.set(password_entry.get())
+            dialog.destroy()
+            
+        def on_cancel():
+            password_var.set("")
+            dialog.destroy()
+            
+        button_frame = ttk.Frame(dialog)
+        button_frame.pack(pady=10)
+        
+        ttk.Button(button_frame, text="Tamam", command=on_ok).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="İptal", command=on_cancel).pack(side="left", padx=5)
+        
+        # Enter tuşunu bağla
+        password_entry.bind("<Return>", lambda e: on_ok())
+        
+        self.wait_window(dialog)
+        return password_var.get()
             
     def clear_output(self):
         """Çıktıyı temizle"""

@@ -14,8 +14,9 @@ from tkinter import ttk, messagebox
 import subprocess
 
 # Varsayılan dosya adı ve token
-DEFAULT_FILENAME = "a3f9c7b2.dat"
-DEFAULT_TOKEN = "USB-AUTH-2442C3D3"
+# Default configuration values - now defined in config file
+DEFAULT_FILENAME = "secret_file.dat"
+DEFAULT_TOKEN = "ENTER_YOUR_TOKEN_HERE"
 
 def get_removable_drives():
     """Takılı çıkarılabilir diskleri listele"""
