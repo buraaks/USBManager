@@ -14,8 +14,9 @@ from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import base64
+from typing import Optional, Tuple
 
-def generate_key_from_password(password: str, salt: bytes | None = None) -> tuple[bytes, bytes]:
+def generate_key_from_password(password: str, salt: Optional[bytes] = None) -> Tuple[bytes, bytes]:
     """
     Generate an encryption key from a password using PBKDF2
     
