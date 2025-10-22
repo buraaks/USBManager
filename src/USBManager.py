@@ -22,12 +22,13 @@ from datetime import datetime
 import time
 import re
 
-# Encryption support
-try:
-    from .encryption import encrypt_file, decrypt_file, encrypt_text, decrypt_text
-except ImportError:
-    # Fallback for direct script execution
-    from encryption import encrypt_file, decrypt_file, encrypt_text, decrypt_text
+# Add the src directory to the path for proper imports
+src_path = os.path.dirname(__file__)
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
+
+# Encryption support - use absolute import
+from encryption import encrypt_file, decrypt_file, encrypt_text, decrypt_text
 
 # --- Windows API ---
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -1425,7 +1426,7 @@ Ctrl+Q           - Uygulamadan çık
 • İlerleme bilgisi output alanında görüntülenir
         """
         messagebox.showinfo("⌨️ Klavye Kısayolları", shortcuts_text)
-        logger.info("Klavye kısayolları penceresi görüntülendi")
+        logger.info("Klavye Kısayolları penceresi görüntülendi")
 
 
 if __name__ == "__main__":
