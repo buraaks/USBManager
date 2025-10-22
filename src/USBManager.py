@@ -60,10 +60,12 @@ MAX_READ_BYTES = 4096
 
 # Import utility functions
 try:
-    from .utils import is_hidden_or_system, maybe_text_sample
+    from utils import is_hidden_or_system, maybe_text_sample, is_hidden
+    from flashreader import scan_drive_all_files
 except ImportError:
     # Fallback for direct script execution
-    from utils import is_hidden_or_system, maybe_text_sample
+    from utils import is_hidden_or_system, maybe_text_sample, is_hidden
+    from flashreader import scan_drive_all_files
 
 # Varsayılan dosya adı ve token
 # Default configuration values - now defined in config file
@@ -111,7 +113,7 @@ LANGUAGES = {
         'label_scan_info': 'Tarama yapılacak sürücüyü yukarıdan seçin.',
         
         # Sağ panel
-        'panel_found_files': '📋 Bulunan Gizli Dosyalar',
+        'panel_found_files': '📋 Bulunan Dosyalar',
         'label_filter': '🔎 Filtre:',
         'label_file_selection': 'Dosya Seçimi:',
         'label_file_operations': 'Seçili Dosya İşlemleri:',
@@ -123,6 +125,8 @@ LANGUAGES = {
         'btn_save_report': '💾 Raporu Kaydet',
         'btn_encrypt': '🔒 Şifrele',
         'btn_decrypt': '🔓 Deşifre Et',
+        'btn_hide': '👁️ Dosyayı Gizle',
+        'btn_show': '👁️ Dosyayı Göster',
         
         # Durum çubuğu
         'status_ready': '✅ Hazır',
@@ -171,7 +175,7 @@ LANGUAGES = {
         'label_scan_info': 'Select the drive to scan from above.',
         
         # Right panel
-        'panel_found_files': '📋 Found Hidden Files',
+        'panel_found_files': '📋 Found Files',
         'label_filter': '🔎 Filter:',
         'label_file_selection': 'File Selection:',
         'label_file_operations': 'Selected File Operations:',
@@ -183,11 +187,13 @@ LANGUAGES = {
         'btn_save_report': '💾 Save Report',
         'btn_encrypt': '🔒 Encrypt',
         'btn_decrypt': '🔓 Decrypt',
+        'btn_hide': '👁️ Hide File',
+        'btn_show': '👁️ Show File',
         
-        # Status bar
+        # Durum çubuğu
         'status_ready': '✅ Ready',
         
-        # Messages
+        # Mesajlar
         'no_usb_found': '❌ No USB drive found',
         'insert_usb': 'Insert USB flash drive and click refresh button.',
         'no_files_found': '❌ No files found',
@@ -453,7 +459,7 @@ class USBManagerApp(tk.Tk):
         self.current_language = 'tr'
         
         self.title("USB Flash Sürücü Yöneticisi - Gelişmiş Araç")
-        self.geometry("1100x700")
+        self.geometry("1300x850")  # Increased window size to ensure all buttons are visible
         self.configure(bg="#f0f0f0")
         
         # İkon ayarla
@@ -473,7 +479,7 @@ class USBManagerApp(tk.Tk):
             'danger': '#f44336',
             'warning': '#FF9800',
             'dark': '#212121',
-            'light': '#ffffff'
+            'light': '#ffffffffffff'
         }
         
         self._scan_thread = None
@@ -500,7 +506,7 @@ class USBManagerApp(tk.Tk):
         self.bind('<Escape>', lambda e: self.stop_scan())           # Esc: Durdur
         self.bind('<Delete>', lambda e: self.delete_selected())     # Del: Sil
         self.bind('<Control-q>', lambda e: self.quit())             # Ctrl+Q: Çık
-        logger.info("Klavye kısayolları ayarlandı")
+        logger.info("Klavye Kısayolları ayarlandı")
     
     def t(self, key: str) -> str:
         """Dil çevirisi için yardımcı fonksiyon"""
@@ -677,6 +683,17 @@ class USBManagerApp(tk.Tk):
         self.search_entry.pack(side="left", fill="x", expand=True, padx=2)
         self.search_entry.bind("<KeyRelease>", self.filter_output)
         
+        # Filtreleme seçenekleri
+        filter_frame = ttk.Frame(right_panel)
+        filter_frame.pack(fill="x", pady=(0, 5))
+        
+        ttk.Label(filter_frame, text="Filtrele:", font=("Segoe UI", 9, "bold")).pack(side="left", padx=2)
+        
+        self.file_filter_var = tk.StringVar(value="hidden")  # Default to hidden files only
+        ttk.Radiobutton(filter_frame, text="Gizli Dosyalar", variable=self.file_filter_var, value="hidden").pack(side="left", padx=5)
+        ttk.Radiobutton(filter_frame, text="Normal Dosyalar", variable=self.file_filter_var, value="normal").pack(side="left", padx=5)
+        ttk.Radiobutton(filter_frame, text="Tüm Dosyalar", variable=self.file_filter_var, value="all").pack(side="left", padx=5)
+        
         # Çıktı alanı
         output_frame = ttk.Frame(right_panel)
         output_frame.pack(fill="both", expand=True)
@@ -715,7 +732,7 @@ class USBManagerApp(tk.Tk):
         
         ttk.Label(file_ops_frame, text=self.t('label_file_operations'), font=("Segoe UI", 9, "bold")).pack(anchor="w", pady=2)
         
-        # Grid layout kullan - 3 satır, 2 sütun
+        # Grid layout kullan - 4 satır, 2 sütun
         ops_grid = ttk.Frame(file_ops_frame)
         ops_grid.pack(fill="x", pady=2)
         
@@ -734,6 +751,10 @@ class USBManagerApp(tk.Tk):
         ttk.Button(ops_grid, text=self.t('btn_encrypt'), command=self.encrypt_selected, width=button_width).grid(row=2, column=0, padx=2, pady=2, sticky="ew")
         ttk.Button(ops_grid, text=self.t('btn_decrypt'), command=self.decrypt_selected, width=button_width).grid(row=2, column=1, padx=2, pady=2, sticky="ew")
         
+        # 4. satır - Görünürlük işlemleri
+        ttk.Button(ops_grid, text=self.t('btn_hide'), command=self.hide_selected_file, width=button_width).grid(row=3, column=0, padx=2, pady=2, sticky="ew")
+        ttk.Button(ops_grid, text=self.t('btn_show'), command=self.show_selected_file, width=button_width).grid(row=3, column=1, padx=2, pady=2, sticky="ew")
+
         # Sütunları eşit genişlikte yap
         ops_grid.columnconfigure(0, weight=1)
         ops_grid.columnconfigure(1, weight=1)
@@ -913,14 +934,35 @@ class USBManagerApp(tk.Tk):
             self.output.see("end")
             
         try:
-            self.found_files = scan_drive_for_hidden(root_path, callback_print=cb_print, stop_event=self._stop_event)
+            # Check if we have the new filter variable
+            if hasattr(self, 'file_filter_var'):
+                # Get the current filter selection
+                file_filter = getattr(self, 'file_filter_var').get()
+                
+                # Clear previous results
+                self.found_files = []
+                
+                # Use the new scan function with filtering
+                def collect_files_callback(msg, tag="info"):
+                    cb_print(msg, tag)
+                    # Extract file paths from the messages to populate found_files
+                    if msg.strip().startswith("[FOUND]"):
+                        # Extract the file path from the message
+                        file_path = msg.split("[FOUND]", 1)[1].strip()
+                        self.found_files.append(file_path)
+                
+                scan_drive_all_files(root_path, collect_files_callback, file_filter)
+            else:
+                # Use the old method for backward compatibility
+                self.found_files = scan_drive_for_hidden(root_path, callback_print=cb_print, stop_event=self._stop_event)
+            
             self.update_file_combo()
             
             # İlerleme çubuğunu tamamla
             self.progress.stop()
             self.progress.config(mode='determinate')
             self.progress_var.set(100)
-            self.progress_label.config(text=f"Tamamlandı - {len(self.found_files)} gizli dosya bulundu")
+            self.progress_label.config(text=f"Tamamlandı - {len(self.found_files)} dosya bulundu")
             
             self.status_var.set(f"✅ Tarama tamamlandı. {len(self.found_files)} dosya bulundu.")
             logger.info(f"Tarama başarıyla tamamlandı: {len(self.found_files)} dosya")
@@ -1283,6 +1325,64 @@ class USBManagerApp(tk.Tk):
         # Bu özellik gelecekte eklenebilir
         pass
     
+    def hide_selected_file(self):
+        """Hide the selected file, making it invisible in standard file system views"""
+        filepath = self.get_selected_file()
+        
+        if not filepath:
+            messagebox.showwarning("No Selection", "Please select a file to hide (from combobox or output area).")
+            return
+            
+        try:
+            # Use the hide_file function from encryption module
+            from encryption import hide_file
+            success = hide_file(filepath)
+            
+            if success:
+                messagebox.showinfo("Success", f"✅ File successfully hidden:\n{filepath}")
+                self.output.insert("end", f"\n👁️ [HIDDEN] {filepath}\n", "success")
+                self.status_var.set(f"✅ File hidden: {os.path.basename(filepath)}")
+                
+                # Update the file list if this file was in our found files
+                if filepath in self.found_files:
+                    self.found_files.remove(filepath)
+                    self.update_file_combo()
+            else:
+                messagebox.showerror("Error", f"❌ Failed to hide file:\n{filepath}")
+                self.status_var.set("❌ Hide operation failed")
+        except Exception as e:
+            messagebox.showerror("Error", f"❌ Failed to hide file:\n{e}")
+            self.status_var.set("❌ Hide operation failed")
+
+    def show_selected_file(self):
+        """Show a previously hidden file, making it visible in standard file system views"""
+        filepath = self.get_selected_file()
+        
+        if not filepath:
+            messagebox.showwarning("No Selection", "Please select a file to show (from combobox or output area).")
+            return
+            
+        try:
+            # Use the make_file_visible function from encryption module
+            from encryption import make_file_visible
+            success = make_file_visible(filepath)
+            
+            if success:
+                messagebox.showinfo("Success", f"✅ File successfully made visible:\n{filepath}")
+                self.output.insert("end", f"\n👁️ [VISIBLE] {filepath}\n", "success")
+                self.status_var.set(f"✅ File made visible: {os.path.basename(filepath)}")
+                
+                # Update the file list if this file wasn't already in our found files
+                if filepath not in self.found_files:
+                    self.found_files.append(filepath)
+                    self.update_file_combo()
+            else:
+                messagebox.showerror("Error", f"❌ Failed to make file visible:\n{filepath}")
+                self.status_var.set("❌ Show operation failed")
+        except Exception as e:
+            messagebox.showerror("Error", f"❌ Failed to make file visible:\n{e}")
+            self.status_var.set("❌ Show operation failed")
+
     def show_about(self):
         """Hakkında penceresi göster"""
         about_text = f"""

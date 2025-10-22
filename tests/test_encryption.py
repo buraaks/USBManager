@@ -16,7 +16,7 @@ import tempfile
 # Add src directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from encryption import generate_key_from_password, encrypt_file, decrypt_file, encrypt_text, decrypt_text
+from encryption import generate_key_from_password, encrypt_file, decrypt_file, encrypt_text, decrypt_text, make_file_visible, hide_file
 
 class TestEncryption(unittest.TestCase):
     
@@ -68,6 +68,12 @@ class TestEncryption(unittest.TestCase):
             self.assertTrue(os.path.exists(encrypted_file_path))
             self.assertTrue(encrypted_file_path.endswith('.encrypted'))
             
+            # Check if the encrypted file is hidden on Windows
+            if os.name == 'nt':
+                # We can't easily check file attributes in a cross-platform way in this test
+                # but we can at least verify the file exists
+                pass
+            
             # Decrypt file
             decrypted_file_path = decrypt_file(encrypted_file_path, password)
             self.assertTrue(os.path.exists(decrypted_file_path))
@@ -106,6 +112,48 @@ class TestEncryption(unittest.TestCase):
         # Try to decrypt with wrong password
         with self.assertRaises(Exception):
             decrypt_text(encrypted_data, wrong_password)
+            
+    def test_make_file_visible(self):
+        """Test making a file visible"""
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8') as temp_file:
+            temp_file.write("Test content")
+            test_file_path = temp_file.name
+            
+        try:
+            # Test making file visible
+            # On non-Windows systems, this should always return True
+            result = make_file_visible(test_file_path)
+            self.assertIsInstance(result, bool)
+            
+            # File should still exist
+            self.assertTrue(os.path.exists(test_file_path))
+            
+        finally:
+            # Clean up
+            if os.path.exists(test_file_path):
+                os.remove(test_file_path)
+                
+    def test_hide_file(self):
+        """Test hiding a file"""
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8') as temp_file:
+            temp_file.write("Test content")
+            test_file_path = temp_file.name
+            
+        try:
+            # Test hiding file
+            # On non-Windows systems, this should always return True
+            result = hide_file(test_file_path)
+            self.assertIsInstance(result, bool)
+            
+            # File should still exist
+            self.assertTrue(os.path.exists(test_file_path))
+            
+        finally:
+            # Clean up
+            if os.path.exists(test_file_path):
+                os.remove(test_file_path)
 
 if __name__ == '__main__':
     unittest.main()

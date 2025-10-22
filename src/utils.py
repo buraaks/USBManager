@@ -32,6 +32,16 @@ def is_hidden_or_system(path: str) -> bool:
     except Exception:
         return False
 
+def is_hidden(path: str) -> bool:
+    """Dosyanın gizli olup olmadığını kontrol et"""
+    try:
+        attrs = GetFileAttributesW(path)
+        if attrs == 0xFFFFFFFF:
+            return False
+        return bool(attrs & FILE_ATTRIBUTE_HIDDEN)
+    except Exception:
+        return False
+
 def maybe_text_sample(data: bytes, max_chars=1000):
     """Binary veriden metin örneği çıkar"""
     if not data:

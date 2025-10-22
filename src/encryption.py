@@ -9,6 +9,7 @@ This software is proprietary. Unauthorized use is prohibited.
 
 import os
 import hashlib
+import subprocess
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -66,6 +67,14 @@ def encrypt_file(file_path: str, password: str) -> str:
         file.write(salt)  # Write salt first
         file.write(encrypted_data)  # Then write encrypted data
     
+    # Make the encrypted file hidden on Windows
+    if os.name == 'nt':
+        try:
+            subprocess.run(["attrib", "+h", encrypted_file_path], check=True)
+        except subprocess.CalledProcessError:
+            # If attrib command fails, continue without hiding the file
+            pass
+    
     return encrypted_file_path
 
 def decrypt_file(encrypted_file_path: str, password: str) -> str:
@@ -97,6 +106,72 @@ def decrypt_file(encrypted_file_path: str, password: str) -> str:
         file.write(decrypted_data)
     
     return decrypted_file_path
+
+def make_file_visible(file_path: str) -> bool:
+    """
+    Remove hidden attribute from a file, making it visible
+    
+    Args:
+        file_path (str): Path to file to make visible
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    if os.name == 'nt':  # Windows
+        try:
+            # Remove hidden, system, and read-only attributes
+            subprocess.run(["attrib", "-h", "-s", "-r", file_path], check=True)
+            return True
+        except subprocess.CalledProcessError:
+            return False
+    else:
+        # On non-Windows systems, hidden files start with a dot
+        # To make them visible, we would need to rename them
+        # This is a simplified implementation
+        try:
+            if os.path.basename(file_path).startswith('.'):
+                new_path = os.path.join(
+                    os.path.dirname(file_path),
+                    os.path.basename(file_path)[1:]  # Remove the leading dot
+                )
+                os.rename(file_path, new_path)
+                return True
+            return True  # File was already visible
+        except OSError:
+            return False
+
+def hide_file(file_path: str) -> bool:
+    """
+    Add hidden attribute to a file, making it invisible in standard file system view
+    
+    Args:
+        file_path (str): Path to file to hide
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    if os.name == 'nt':  # Windows
+        try:
+            # Add hidden attribute
+            subprocess.run(["attrib", "+h", file_path], check=True)
+            return True
+        except subprocess.CalledProcessError:
+            return False
+    else:
+        # On non-Windows systems, hidden files start with a dot
+        # To hide them, we need to rename them to start with a dot
+        try:
+            filename = os.path.basename(file_path)
+            if not filename.startswith('.'):
+                new_path = os.path.join(
+                    os.path.dirname(file_path),
+                    '.' + filename  # Add leading dot
+                )
+                os.rename(file_path, new_path)
+                return True
+            return True  # File was already hidden
+        except OSError:
+            return False
 
 def encrypt_text(text: str, password: str) -> bytes:
     """

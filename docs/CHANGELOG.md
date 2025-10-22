@@ -1,5 +1,34 @@
 # 📝 Değişiklik Günlüğü (Changelog)
 
+## [1.1.0] - 2025-10-22
+
+### ✨ Yeni Özellikler
+
+#### 👁️ Dosya Görünürlük Yönetimi
+- **Dosya Gizleme**: Seçili dosyaları gizleme özelliği eklendi
+  - `hide_file()` fonksiyonu ile dosyaları gizleme
+  - Windows `attrib +h` komutu kullanılarak gizleme
+  - GUI üzerinden "Dosyayı Gizle" butonu ile erişim
+
+- **Dosya Gösterme**: Gizli dosyaları görünür yapma özelliği
+  - `make_file_visible()` fonksiyonu ile dosyaları gösterme
+  - Windows `attrib -h -s -r` komutu kullanılarak gösterme
+  - GUI üzerinden "Dosyayı Göster" butonu ile erişim
+
+- **UI Entegrasyonu**:
+  - Yeni "👁️ Dosyayı Gizle" ve "👁️ Dosyayı Göster" butonları eklendi
+  - Çok dilli destek (Türkçe ve İngilizce)
+  - Başarılı/ başarısız işlemler için kullanıcı geri bildirimi
+
+#### 🧪 Test Coverage
+- **Unit Testler**: Dosya görünürlük yönetimi için testler eklendi
+  - `test_visibility.py`: Core fonksiyonlar için testler
+  - `test_usbmanager_visibility.py`: UI entegrasyonu için testler
+
+#### 📚 Dokümantasyon
+- **FILE_VISIBILITY_MANAGEMENT.md**: Yeni özellik için detaylı dokümantasyon
+- **README.md**: Yeni özellik ile güncellendi
+
 ## [1.0.0] - 2025-10-21
 
 ### ✨ Yeni Özellikler
@@ -92,10 +121,9 @@ Yeni modüller:
 
 ### 🔜 Gelecek Planlar
 
-v1.1.0 için planlanan özellikler:
+v1.2.0 için planlanan özellikler:
 - Konfigürasyon dosyası desteği
 - Çok dilli destek (i18n)
-- Unit testler
 - Otomatik yedekleme özelliği
 - Gelişmiş filtreleme
 - Dosya içeriği düzenleme

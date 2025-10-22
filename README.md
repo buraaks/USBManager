@@ -48,6 +48,7 @@ launchers\baslat.vbs
 - 📊 **İlerleme Göstergesi** - Real-time tarama ilerlemesi
 - 📝 **Logging Sistemi** - Detaylı işlem kayıtları
 - 🎨 **Modern GUI** - Koyu tema, renkli çıktı
+- 👁️ **Dosya Görünürlük Yönetimi** - Dosyaları gizleme ve gösterme
 
 ---
 

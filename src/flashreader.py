@@ -27,7 +27,11 @@ FILE_ATTRIBUTE_SYSTEM = 0x4
 MAX_READ_BYTES = 4096
 
 # Import utility functions
-from .utils import is_hidden_or_system, maybe_text_sample
+try:
+    from utils import is_hidden_or_system, maybe_text_sample, is_hidden
+except ImportError:
+    # Fallback for direct script execution
+    from utils import is_hidden_or_system, maybe_text_sample, is_hidden
 
 # Utility functions imported from utils.py
 # def is_hidden_or_system(path: str) -> bool:
@@ -63,6 +67,58 @@ def scan_drive_for_hidden(root_path: str, callback_print):
                 callback_print(f" - İstisna: {e}\n")
                 continue
     callback_print(f"Tarama tamamlandı. Toplam gizli dosya: {total_found}\n")
+    return total_found
+
+def scan_drive_all_files(root_path: str, callback_print, file_filter="all"):
+    """
+    Scan drive for all files with filtering options
+    
+    Args:
+        root_path (str): Root path to scan
+        callback_print (function): Callback function to print messages
+        file_filter (str): Filter type - "all", "hidden", or "normal"
+    """
+    total_found = 0
+    callback_print(f"Tarama başlatıldı: {root_path}\n")
+    for dirpath, dirnames, filenames in os.walk(root_path, topdown=True,
+                                                onerror=lambda e: callback_print(f"Hata (walk): {e}\n")):
+        for fname in filenames:
+            full = os.path.join(dirpath, fname)
+            try:
+                # Apply filter based on file type
+                is_file_hidden = is_hidden(full)
+                
+                # Filter files based on selection
+                should_include = False
+                if file_filter == "all":
+                    should_include = True
+                elif file_filter == "hidden":
+                    should_include = is_file_hidden
+                elif file_filter == "normal":
+                    should_include = not is_file_hidden
+                
+                if should_include:
+                    total_found += 1
+                    callback_print(f"[FOUND] {full}\n")
+                    try:
+                        with open(full, "rb") as f:
+                            sample = f.read(MAX_READ_BYTES)
+                    except Exception as e:
+                        callback_print(f" - OKUNAMADI: {e}\n\n")
+                        continue
+
+                    text_sample = maybe_text_sample(sample)
+                    if text_sample is None:
+                        callback_print(" - Dosya binary veya okunabilir metin değil.\n\n")
+                    else:
+                        callback_print(" - İçerik örneği:\n")
+                        for line in text_sample.splitlines():
+                            callback_print(f" {line}\n")
+                        callback_print("\n")
+            except Exception as e:
+                callback_print(f" - İstisna: {e}\n")
+                continue
+    callback_print(f"Tarama tamamlandı. Toplam dosya: {total_found}\n")
     return total_found
 
 class HiddenScannerGUI(tk.Tk):
