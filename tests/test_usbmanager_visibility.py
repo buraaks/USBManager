@@ -24,8 +24,8 @@ class TestUSBManagerVisibility(unittest.TestCase):
     
     def setUp(self):
         """Set up test environment"""
-        # Create a mock USBManager app instance
-        with patch('USBManager.tk.Tk.__init__', return_value=None):
+        # Patch the entire Tk class so that USBManagerApp can create a safe mock self.tk
+        with patch('USBManager.tk.Tk', new=MagicMock()):
             self.app = USBManager.USBManagerApp()
             # Manually set required attributes
             self.app.found_files = []
